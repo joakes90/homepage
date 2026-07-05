@@ -1,7 +1,123 @@
 <!DOCTYPE html>
+<html lang="en">
 <head>
-
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Justin Oakes</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
-  <h1>Hello Go!</h1>
+  <main class="crt">
+    <div class="topbar">
+      <span class="topbar__brand">// portfolio.sys</span>
+      <span>v1.0 · 2026</span>
+    </div>
+
+    <section class="hero">
+      <div class="hero__main">
+        <div class="hero__status"><span class="dot"></span>AVAILABLE FOR WORK</div>
+        <h1 class="hero__name">JUSTIN<br>OAKES</h1>
+        <p class="hero__tagline">I build real things for real reasons.</p>
+        <p class="hero__role">iOS &amp; systems engineer · independent builder</p>
+        <div class="hero__actions">
+          <a class="btn btn--primary" href="#projects">ENTER SITE →</a>
+          <a class="btn btn--ghost" href="https://github.com/joakes90" target="_blank" rel="noopener">github ↗</a>
+        </div>
+      </div>
+      <div class="hero__panel">
+        <div class="terminal">
+          <div class="terminal__bar"><span class="dot dot--sm"></span>boot.log — /dev/tty0</div>
+          <div class="terminal__body">
+            <div>$ boot --profile justin</div>
+            <div>loading kernel ........ <span class="ok">OK</span></div>
+            <div>fetch projects ........ <span class="ok">4 found</span></div>
+            <div>verify credentials .... <span class="ok">OK</span></div>
+            <div>mount /resume ......... <span class="ok">OK</span></div>
+            <div class="terminal__gap"></div>
+            <div class="terminal__ready">&gt; ready.</div>
+            <div class="terminal__ready">&gt; ask the agent anything_<span class="cursor"></span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="previously">
+      <div class="previously__label">PREVIOUSLY</div>
+      <div class="previously__row">
+        <div class="company-slot">▢ COMPANY</div>
+        <div class="company-slot">▢ COMPANY</div>
+        <div class="company-slot">▢ COMPANY</div>
+        <div class="company-slot">▢ COMPANY</div>
+      </div>
+    </section>
+
+    <section class="projects" id="projects">
+      <div class="projects__header">
+        <div>
+          <div class="projects__eyebrow">// 02 — PROJECTS</div>
+          <h2 class="projects__title">Selected work</h2>
+        </div>
+        <div class="projects__count">4 projects · scroll ↓</div>
+      </div>
+
+      <div class="projects__grid">
+        <article class="card card--flagship">
+          <div class="card__shot">[ APP SCREENSHOT — 1290×2796 ]</div>
+          <div class="card__badges">
+            <span class="badge badge--solid">FLAGSHIP</span>
+            <span class="badge badge--warn"><span class="dot dot--warn"></span>IN DEVELOPMENT</span>
+          </div>
+          <h3 class="card__title">Classic Car Provenance</h3>
+          <p class="card__desc">A verifiable ownership &amp; history ledger for collectible cars — documents, service records, and chain of custody, all in one tamper-evident place.</p>
+          <div class="card__tags">
+            <span class="tag">Swift</span>
+            <span class="tag">SwiftUI</span>
+            <span class="tag">Go</span>
+            <span class="tag">SQL</span>
+          </div>
+          <div class="card__spacer"></div>
+          <a class="card__link" href="#">read the build log ↗</a>
+        </article>
+
+        <article class="card">
+          <div class="card__row">
+            <h3 class="card__title">Belt Tension</h3>
+            <div class="card__price">
+              <div class="card__amount">$4.2K</div>
+              <div class="card__period">/ MONTH</div>
+            </div>
+          </div>
+          <p class="card__desc">Tunes timing-belt tension by ear, from your phone's mic. A quiet cult favorite among <strong>Ferrari</strong> &amp; <strong>Ducati</strong> owners.</p>
+          <div class="card__spacer"></div>
+          <a class="btn btn--pill" href="#">App Store ↗</a>
+        </article>
+
+        <article class="card">
+          <h3 class="card__title">Safari Search Extension</h3>
+          <p class="card__desc">A keyboard-first search-shortcut extension for Safari. Small, fast, does one thing well.</p>
+          <div class="card__spacer"></div>
+          <a class="btn btn--pill" href="#">App Store ↗</a>
+        </article>
+
+        <article class="card card--wide">
+          <div class="card__wide-main">
+            <h3 class="card__title">This site</h3>
+            <p class="card__desc">Hand-built phosphor CRT in WebGL. No framework, no build step — just shaders and intent.</p>
+          </div>
+          <div class="card__wide-side">
+            <div class="card__tags">
+              <span class="tag">WebGL</span>
+              <span class="tag">GLSL</span>
+              <span class="tag">JS</span>
+            </div>
+            <a class="card__link" href="https://github.com/joakes90/homepage" target="_blank" rel="noopener">view repo ↗</a>
+          </div>
+        </article>
+      </div>
+    </section>
+  </main>
 </body>
+</html>

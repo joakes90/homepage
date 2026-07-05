@@ -1,16 +1,15 @@
 package main
 
-import(
-	"fmt"
+import (
 	"net/http"
+
+	"github.com/joakes90/homepage/internal/handlers"
 )
 
 func main() {
-	http.HandleFunc("/", func (w http.ResponseWriter, t *http.Request) {
-		fmt.Fprintf(w, "Welcome to my website!")
-	})
+	http.HandleFunc("/", handlers.Home)
 
-	fs := http.FileServer(http.Dir("static/"))
+	fs := http.FileServer(http.Dir("web/static/"))
 	http.Handle("/static/", http.StripPrefix("/static/", fs))
 
 	http.ListenAndServe(":80", nil)
