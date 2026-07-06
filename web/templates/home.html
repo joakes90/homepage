@@ -4,6 +4,27 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Justin Oakes</title>
+  <script>
+    // Sets the phosphor theme (green default, amber opt-in) before the
+    // stylesheet paints, so there's no flash of green before crt.js (which
+    // is deferred) gets a chance to run. Mirrors crt.js's own
+    // query-param-then-localStorage pattern for the CRT on/off toggle.
+    (function () {
+      try {
+        var params = new URLSearchParams(window.location.search);
+        var q = params.get('theme');
+        if (q === 'amber' || q === 'green') {
+          window.localStorage.setItem('crtTheme', q);
+        }
+        var theme = (q === 'amber' || q === 'green') ? q : window.localStorage.getItem('crtTheme');
+        if (theme === 'amber') {
+          document.documentElement.setAttribute('data-theme', 'amber');
+        }
+      } catch (e) {
+        /* localStorage unavailable (private mode, etc) - default to green */
+      }
+    })();
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -22,7 +43,7 @@
     <section class="hero">
       <div class="hero__main">
         <div class="hero__status"><span class="dot"></span>AVAILABLE FOR WORK</div>
-        <h1 class="hero__name">JUSTIN<br>OAKES</h1>
+        <h1 class="hero__name"><span class="glow-text" data-text="JUSTIN">JUSTIN</span><br><span class="glow-text" data-text="OAKES">OAKES</span></h1>
         <p class="hero__tagline">I build real things for real reasons.</p>
           <p class="hero__role">iOS, deep learning &amp; systems engineer <br>independent builder</p>
         <div class="hero__actions">
@@ -69,7 +90,7 @@
       <div class="projects__header">
         <div>
           <div class="projects__eyebrow">// 02 — PROJECTS</div>
-          <h2 class="projects__title">Selected work</h2>
+          <h2 class="projects__title glow-text" data-text="Selected work">Selected work</h2>
         </div>
         <div class="projects__count">4 projects · scroll ↓</div>
       </div>

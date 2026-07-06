@@ -1,9 +1,11 @@
 // CRT overlay: WebGL2 fullscreen-triangle pass adding grain, organic
-// flicker, a pulsing vignette, and an occasional "degauss" burst on top of
-// the existing CSS scanlines (see .crt::before in style.css, left untouched
-// by this file). The CSS vignette (.crt::after) is disabled via the
-// `crt-canvas-active` class added to <html> once the shader takes over that
-// job, so the two never double up.
+// flicker, a pulsing vignette, a slow vertical-hold roll band, and an
+// occasional "degauss" burst on top of the existing CSS scanlines (see
+// .crt::before in style.css, left untouched by this file). The CSS
+// vignette (.crt::after) is disabled via the `crt-canvas-active` class
+// added to <html> once the shader takes over that job, so the two never
+// double up. The roll band is frozen out entirely under
+// prefers-reduced-motion (see uReducedMotion), same as the degauss timer.
 //
 // No build step, no dependencies. If WebGL2 is unavailable, this script
 // quietly does nothing and the CSS-only scanline/vignette treatment remains
@@ -29,6 +31,7 @@
     'uniform float uTime;\n' +
     'uniform float uIntensity;\n' +
     'uniform float uDegauss;\n' +
+    'uniform float uReducedMotion;\n' +
     'out vec4 fragColor;\n' +
     '\n' +
     'float hash(vec2 p) {\n' +
@@ -69,6 +72,28 @@
     '  return -vig * 0.225;\n' +
     '}\n' +
     '\n' +
+    // Horizontal "vertical hold" roll band drifting slowly down the screen
+    // (tens-of-seconds period), like an old CRT's vertical-sync drift.
+    // uv.y follows gl_FragCoord convention (0 = bottom, 1 = top), so
+    // counting bandCenter down from 1 makes the band visually drift
+    // downward as t increases, wrapping smoothly back to the top. The
+    // falloff is asymmetric - a tighter cutoff on the leading (lower-uv.y,
+    // not-yet-passed) side and a longer, softer decay on the trailing
+    // (higher-uv.y, just-passed) side - to read more like a real phosphor
+    // afterglow than a symmetric blob. Frozen out entirely under
+    // prefers-reduced-motion.
+    'float rollBand(vec2 uv, float t, float reducedMotion) {\n' +
+    '  float period = 27.0;\n' +
+    '  float bandCenter = 1.0 - fract(t / period);\n' +
+    '  float offset = uv.y - bandCenter;\n' +
+    '  offset -= floor(offset + 0.5);\n' + // shortest signed distance, wraps seamlessly
+    '  float leadWidth = 0.035;\n' +
+    '  float trailWidth = 0.11;\n' +
+    '  float width = offset < 0.0 ? leadWidth : trailWidth;\n' +
+    '  float shape = smoothstep(width, 0.0, abs(offset));\n' +
+    '  return shape * 0.12 * (1.0 - reducedMotion);\n' +
+    '}\n' +
+    '\n' +
     'void main() {\n' +
     '  vec2 fragPx = gl_FragCoord.xy;\n' +
     '  vec2 uv = fragPx / uResolution;\n' +
@@ -79,6 +104,7 @@
     '\n' +
     '  float flicker = flickerDelta(uTime);\n' +
     '  float vignette = vignetteDarken(uv, uDegauss);\n' +
+    '  float roll = rollBand(uv, uTime, uReducedMotion);\n' +
     '\n' +
     // Degauss burst: a transient extra noise burst plus a brief brightness
     // flash, both scaled by the uDegauss envelope (0 -> 1 -> 0) driven from
@@ -87,7 +113,7 @@
     '  float burstNoise = hash(fragPx + vec2(uTime * 400.0, uTime * 250.0)) - 0.5;\n' +
     '  float degaussTerm = uDegauss * burstNoise * 0.15 + uDegauss * 0.06;\n' +
     '\n' +
-    '  float gray = clamp(0.5 + grain + flicker + vignette + degaussTerm, 0.0, 1.0);\n' +
+    '  float gray = clamp(0.5 + grain + flicker + vignette + degaussTerm + roll, 0.0, 1.0);\n' +
     '  fragColor = vec4(vec3(gray), uIntensity);\n' +
     '}\n';
 
@@ -209,6 +235,8 @@
     var uTime = gl.getUniformLocation(program, 'uTime');
     var uIntensity = gl.getUniformLocation(program, 'uIntensity');
     var uDegauss = gl.getUniformLocation(program, 'uDegauss');
+    var uReducedMotion = gl.getUniformLocation(program, 'uReducedMotion');
+    var reducedMotionFlag = reducedMotion ? 1.0 : 0.0;
 
     gl.disable(gl.DEPTH_TEST);
     gl.disable(gl.STENCIL_TEST);
@@ -275,6 +303,7 @@
       gl.uniform1f(uTime, t);
       gl.uniform1f(uIntensity, currentIntensity);
       gl.uniform1f(uDegauss, degaussValue);
+      gl.uniform1f(uReducedMotion, reducedMotionFlag);
 
       gl.clear(gl.COLOR_BUFFER_BIT);
       if (currentIntensity > 0) {
