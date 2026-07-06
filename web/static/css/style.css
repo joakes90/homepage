@@ -70,6 +70,29 @@ a {
   z-index: 6;
 }
 
+/* Once the WebGL2 overlay is running it draws its own pulsing vignette
+   (see vignetteDarken() in crt.js) so the static CSS one is hidden to avoid
+   doubling up. Left active whenever WebGL2 is unavailable. */
+html.crt-canvas-active .crt::after {
+  display: none;
+}
+
+@keyframes crtDegauss {
+  0% { transform: skewX(0deg) scaleX(1); }
+  10% { transform: skewX(1.3deg) scaleX(1.01); }
+  25% { transform: skewX(-0.9deg) scaleX(0.994); }
+  45% { transform: skewX(0.5deg) scaleX(1.004); }
+  70% { transform: skewX(-0.2deg) scaleX(0.998); }
+  100% { transform: skewX(0deg) scaleX(1); }
+}
+
+/* Triggered briefly by crt.js on a randomized 25-50s timer, synced with the
+   shader's uDegauss burst. Whole-container skew/scale stays well under 1.5deg
+   / 1% so it reads as a "wobble" without distorting glyph legibility. */
+.crt.is-degaussing {
+  animation: crtDegauss 700ms cubic-bezier(0.215, 0.61, 0.355, 1) 1;
+}
+
 .dot {
   display: inline-block;
   width: 8px;
@@ -599,7 +622,8 @@ a {
   .crt,
   .dot,
   .dot--warn,
-  .cursor {
+  .cursor,
+  .crt.is-degaussing {
     animation: none;
   }
 }

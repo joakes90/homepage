@@ -1,9 +1,13 @@
-// Phase 1 CRT overlay: WebGL2 fullscreen-triangle pass adding subtle grain +
-// organic flicker on top of the existing CSS scanlines/vignette (see
-// .crt::before / .crt::after in style.css, left untouched by this file).
+// CRT overlay: WebGL2 fullscreen-triangle pass adding grain, organic
+// flicker, a pulsing vignette, and an occasional "degauss" burst on top of
+// the existing CSS scanlines (see .crt::before in style.css, left untouched
+// by this file). The CSS vignette (.crt::after) is disabled via the
+// `crt-canvas-active` class added to <html> once the shader takes over that
+// job, so the two never double up.
 //
 // No build step, no dependencies. If WebGL2 is unavailable, this script
-// quietly does nothing and the CSS-only treatment remains the whole effect.
+// quietly does nothing and the CSS-only scanline/vignette treatment remains
+// the whole effect.
 (function () {
   'use strict';
 
@@ -24,16 +28,17 @@
     'uniform vec2 uResolution;\n' +
     'uniform float uTime;\n' +
     'uniform float uIntensity;\n' +
+    'uniform float uDegauss;\n' +
     'out vec4 fragColor;\n' +
     '\n' +
     'float hash(vec2 p) {\n' +
     '  return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);\n' +
     '}\n' +
     '\n' +
-    // Organic, non-periodic flicker: a slow gentle sine wobble plus rare,
-    // brief brightness dips that never go below a 0.85 floor (delta -0.15).
+    // Organic, non-periodic flicker: a gentle sine wobble plus occasional,
+    // brief brightness dips that never go below a ~0.85 floor (delta -0.15).
     'float flickerDelta(float t) {\n' +
-    '  float base = sin(t * 2.0) * 0.008 + sin(t * 0.73) * 0.012;\n' +
+    '  float base = sin(t * 2.0) * 0.014 + sin(t * 0.73) * 0.02;\n' +
     '\n' +
     '  float slotLen = 8.0;\n' +
     '  float slot = floor(t / slotLen);\n' +
@@ -41,24 +46,48 @@
     '  float slotRand2 = hash(vec2(slot, 2.0));\n' +
     '\n' +
     '  float dipCenter = slotRand * slotLen;\n' +
-    '  float dipDepth = 0.05 + slotRand2 * 0.10;\n' + // 0.05 - 0.15 -> floor >= 0.85
+    '  float dipDepth = 0.07 + slotRand2 * 0.08;\n' + // 0.07 - 0.15 -> floor >= 0.85
     '  float dist = abs(mod(t, slotLen) - dipCenter);\n' +
-    '  float dipShape = smoothstep(0.045, 0.0, dist);\n' +
+    '  float dipShape = smoothstep(0.06, 0.0, dist);\n' +
     '  float dip = -dipDepth * dipShape;\n' +
     '\n' +
     '  return base + dip;\n' +
     '}\n' +
     '\n' +
+    // Radial vignette, aspect-corrected, tuned to roughly match the
+    // darkening profile of the CSS radial-gradient it replaces (transparent
+    // to ~62% radius, ~45% relative darken at the corners under the
+    // overlay blend-mode math). Widens/deepens slightly during a degauss
+    // burst for a "screen edges pulse" feel, and rides on the same flicker
+    // delta as the rest of the frame since both feed the same `gray` sum.
+    'float vignetteDarken(vec2 uv, float degauss) {\n' +
+    '  vec2 c = uv - 0.5;\n' +
+    '  c.x *= uResolution.x / uResolution.y;\n' +
+    '  float dist = length(c) * 1.15;\n' +
+    '  float vig = smoothstep(0.62, 1.0, dist);\n' +
+    '  vig *= (1.0 + degauss * 0.3);\n' +
+    '  return -vig * 0.225;\n' +
+    '}\n' +
+    '\n' +
     'void main() {\n' +
     '  vec2 fragPx = gl_FragCoord.xy;\n' +
+    '  vec2 uv = fragPx / uResolution;\n' +
     '\n' +
-    // Per-frame per-pixel grain, amplitude in the ±0.025-0.04 range.
+    // Per-frame per-pixel grain.
     '  float n = hash(fragPx + vec2(uTime * 113.0, uTime * 71.0));\n' +
-    '  float grain = (n - 0.5) * 2.0 * 0.032;\n' +
+    '  float grain = (n - 0.5) * 2.0 * 0.045;\n' +
     '\n' +
     '  float flicker = flickerDelta(uTime);\n' +
+    '  float vignette = vignetteDarken(uv, uDegauss);\n' +
     '\n' +
-    '  float gray = clamp(0.5 + grain + flicker, 0.0, 1.0);\n' +
+    // Degauss burst: a transient extra noise burst plus a brief brightness
+    // flash, both scaled by the uDegauss envelope (0 -> 1 -> 0) driven from
+    // JS on a randomized 25-50s timer, synced with a CSS skew/scale wobble
+    // applied to the page container.
+    '  float burstNoise = hash(fragPx + vec2(uTime * 400.0, uTime * 250.0)) - 0.5;\n' +
+    '  float degaussTerm = uDegauss * burstNoise * 0.15 + uDegauss * 0.06;\n' +
+    '\n' +
+    '  float gray = clamp(0.5 + grain + flicker + vignette + degaussTerm, 0.0, 1.0);\n' +
     '  fragColor = vec4(vec3(gray), uIntensity);\n' +
     '}\n';
 
@@ -107,9 +136,28 @@
     }
   }
 
+  function easeOutCubic(t) {
+    var f = 1 - t;
+    return 1 - f * f * f;
+  }
+
+  // Fast attack (first 12% of the burst duration), slower easeOutCubic-shaped
+  // decay for the remainder. Returns a 0..1 envelope value; 0 outside [0,1).
+  function degaussEnvelope(elapsedMs, durationMs) {
+    var t = elapsedMs / durationMs;
+    if (t <= 0 || t >= 1) return 0;
+    var attackFrac = 0.12;
+    if (t < attackFrac) {
+      return easeOutCubic(t / attackFrac);
+    }
+    var dt = (t - attackFrac) / (1 - attackFrac);
+    return 1 - easeOutCubic(dt);
+  }
+
   function init() {
     var canvas = document.getElementById('crt-overlay');
     var toggle = document.getElementById('crt-toggle');
+    var crtRoot = document.querySelector('.crt');
     if (!canvas) return;
 
     var reducedMotion = window.matchMedia &&
@@ -139,7 +187,8 @@
 
     if (!gl) {
       // No WebGL2 support: nothing to draw. The CSS-only scanline/vignette
-      // treatment already applied via .crt::before/::after remains as-is.
+      // treatment already applied via .crt::before/::after remains as-is
+      // (crt-canvas-active is never added, so that CSS stays untouched).
       console.info('crt.js: WebGL2 unavailable, using CSS-only CRT fallback.');
       canvas.style.display = 'none';
       if (toggle) {
@@ -150,10 +199,16 @@
       return;
     }
 
+    // The shader now owns the vignette (so it can pulse with flicker /
+    // degauss); hide the static CSS vignette to avoid doubling up. The CSS
+    // scanlines (.crt::before) are left alone.
+    document.documentElement.classList.add('crt-canvas-active');
+
     var program = createProgram(gl, VERT_SRC, FRAG_SRC);
     var uResolution = gl.getUniformLocation(program, 'uResolution');
     var uTime = gl.getUniformLocation(program, 'uTime');
     var uIntensity = gl.getUniformLocation(program, 'uIntensity');
+    var uDegauss = gl.getUniformLocation(program, 'uDegauss');
 
     gl.disable(gl.DEPTH_TEST);
     gl.disable(gl.STENCIL_TEST);
@@ -185,6 +240,12 @@
     var targetIntensity = enabled ? 1 : 0;
     var running = false;
 
+    // Degauss burst state. degaussBurstStart is a performance.now() timestamp
+    // while a burst is in flight, or null when idle.
+    var DEGAUSS_DURATION_MS = 700;
+    var degaussBurstStart = null;
+    var degaussClassTimer = null;
+
     function render() {
       rafId = null;
 
@@ -196,20 +257,33 @@
 
       resizeIfNeeded();
 
-      var t = (performance.now() - startTime) / 1000;
+      var now = performance.now();
+      var t = (now - startTime) / 1000;
+
+      var degaussValue = 0;
+      if (degaussBurstStart !== null) {
+        var elapsed = now - degaussBurstStart;
+        if (elapsed >= DEGAUSS_DURATION_MS) {
+          degaussBurstStart = null;
+        } else {
+          degaussValue = degaussEnvelope(elapsed, DEGAUSS_DURATION_MS);
+        }
+      }
+
       gl.useProgram(program);
       gl.uniform2f(uResolution, backingWidth, backingHeight);
       gl.uniform1f(uTime, t);
       gl.uniform1f(uIntensity, currentIntensity);
+      gl.uniform1f(uDegauss, degaussValue);
 
       gl.clear(gl.COLOR_BUFFER_BIT);
       if (currentIntensity > 0) {
         gl.drawArrays(gl.TRIANGLES, 0, 3);
       }
 
-      if (currentIntensity === 0 && targetIntensity === 0) {
-        // Fully faded out and staying off: stop the loop to save GPU/battery
-        // rather than continuing to draw a fully-transparent frame forever.
+      if (currentIntensity === 0 && targetIntensity === 0 && degaussBurstStart === null) {
+        // Fully faded out, staying off, and no burst in flight: stop the
+        // loop to save GPU/battery rather than drawing transparent frames.
         running = false;
         return;
       }
@@ -233,6 +307,41 @@
       }
     }
 
+    // Randomized 25-50s interval, re-rolled after every trigger (not a fixed
+    // loop) so bursts feel occasional/intermittent rather than mechanical.
+    function scheduleNextDegauss() {
+      var delay = 25000 + Math.random() * 25000;
+      setTimeout(triggerDegauss, delay);
+    }
+
+    function triggerDegauss() {
+      if (enabled) {
+        degaussBurstStart = performance.now();
+
+        if (crtRoot) {
+          crtRoot.classList.remove('is-degaussing');
+          // Force a reflow so re-adding the class restarts the CSS
+          // animation even if a previous burst's class hadn't cleared yet.
+          void crtRoot.offsetWidth;
+          crtRoot.classList.add('is-degaussing');
+        }
+
+        if (degaussClassTimer !== null) {
+          clearTimeout(degaussClassTimer);
+        }
+        degaussClassTimer = setTimeout(function () {
+          if (crtRoot) crtRoot.classList.remove('is-degaussing');
+          degaussClassTimer = null;
+        }, DEGAUSS_DURATION_MS);
+
+        if (document.visibilityState !== 'hidden') {
+          startLoop();
+        }
+      }
+
+      scheduleNextDegauss();
+    }
+
     function setEnabled(next) {
       enabled = next;
       targetIntensity = enabled ? 1 : 0;
@@ -248,7 +357,7 @@
     document.addEventListener('visibilitychange', function () {
       if (document.visibilityState === 'hidden') {
         stopLoop();
-      } else if (enabled || targetIntensity > 0 || currentIntensity > 0) {
+      } else if (enabled || targetIntensity > 0 || currentIntensity > 0 || degaussBurstStart !== null) {
         startLoop();
       }
     });
@@ -265,14 +374,16 @@
       });
     }
 
+    // No degauss timers at all under prefers-reduced-motion - not merely
+    // "skip the CSS wobble", the JS never schedules the shader burst either.
+    if (!reducedMotion) {
+      scheduleNextDegauss();
+    }
+
     if (document.visibilityState !== 'hidden') {
       // Draw at least one frame immediately even when starting disabled, so
       // the canvas is correctly sized/cleared rather than stale.
       startLoop();
-      if (!enabled) {
-        // With targetIntensity already 0 the loop will fade (instantly, since
-        // currentIntensity starts at 0 too) and stop itself after one frame.
-      }
     }
   }
 
