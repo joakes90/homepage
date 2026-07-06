@@ -122,6 +122,53 @@ a {
   color: var(--fg);
 }
 
+.topbar__meta {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+/* CRT overlay canvas (WebGL2 grain + flicker, see /static/js/crt.js).
+   Positioned above the page, never intercepts pointer events, and never
+   duplicates the scanline/vignette treatment already provided by
+   .crt::before / .crt::after above. */
+#crt-overlay {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 40;
+  mix-blend-mode: overlay;
+}
+
+.crt-toggle {
+  font-family: inherit;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--fg-dim);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 9px;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.crt-toggle:hover {
+  color: var(--fg);
+  border-color: var(--border-strong);
+}
+
+.crt-toggle[aria-pressed="false"] {
+  opacity: 0.6;
+}
+
+.crt-toggle:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
 /* Hero */
 .hero {
   display: grid;

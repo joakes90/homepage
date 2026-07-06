@@ -13,7 +13,10 @@
   <main class="crt">
     <div class="topbar">
       <span class="topbar__brand">// portfolio.sys</span>
-      <span>v1.0 · 2026</span>
+      <div class="topbar__meta">
+        <span>v1.0 · 2026</span>
+        <button id="crt-toggle" class="crt-toggle" type="button" aria-pressed="true">CRT: ON</button>
+      </div>
     </div>
 
     <section class="hero">
@@ -123,5 +126,7 @@
       </div>
     </section>
   </main>
+  <canvas id="crt-overlay" aria-hidden="true"></canvas>
+  <script src="/static/js/crt.js" defer></script>
 </body>
 </html>
