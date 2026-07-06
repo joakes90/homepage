@@ -290,6 +290,12 @@ a {
   color: var(--fg-dim);
 }
 
+.company-slot:hover {
+  cursor: pointer;
+  color: var(--bg);
+  background-color: var(--accent);
+}
+
 /* Projects */
 .projects {
   padding: 56px 44px 64px;
