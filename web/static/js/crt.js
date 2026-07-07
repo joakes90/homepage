@@ -7,9 +7,11 @@
 // double up. The roll band is frozen out entirely under
 // prefers-reduced-motion (see uReducedMotion), same as the degauss timer.
 //
-// No build step, no dependencies. If WebGL2 is unavailable, this script
-// quietly does nothing and the CSS-only scanline/vignette treatment remains
-// the whole effect.
+// No build step, no dependencies. If WebGL2 is unavailable - or the device
+// is touch-primary (phones/tablets; see the touchPrimary check in init(),
+// which works around a WebKit fixed-position + mix-blend-mode compositing
+// bug rather than a missing feature) - this script quietly does nothing and
+// the CSS-only scanline/vignette treatment remains the whole effect.
 (function () {
   'use strict';
 
@@ -202,7 +204,25 @@
       enabled = !reducedMotion;
     }
 
-    var gl = canvas.getContext('webgl2', {
+    // Touch-primary devices (phones/tablets - coarse pointer, no hover; this
+    // is how iOS/iPadOS Safari and friends present, as opposed to a mouse or
+    // trackpad) are skipped entirely rather than handed a WebGL context.
+    // #crt-overlay is `position: fixed` with `mix-blend-mode: overlay` (see
+    // style.css); WebKit has a longstanding compositing bug where a fixed-
+    // position element's blend mode is silently dropped in favor of plain
+    // alpha-over compositing once it's promoted to its own layer (which a
+    // WebGL canvas always is). Since the shader's output is a near-opaque,
+    // ~50%-gray grain/vignette buffer meant to be *blended* rather than
+    // painted, losing the blend mode makes it paint flat over the whole
+    // page - the "black and white static that obscures everything" bug.
+    // There's no script-observable way to test for that rendering bug
+    // directly, so this proxies for it via input capability (not UA
+    // sniffing) and falls back to the same CSS-only scanline/vignette
+    // treatment used when WebGL2 itself is unavailable, below.
+    var touchPrimary = !!(window.matchMedia &&
+      window.matchMedia('(pointer: coarse) and (hover: none)').matches);
+
+    var gl = touchPrimary ? null : canvas.getContext('webgl2', {
       alpha: true,
       antialias: false,
       depth: false,
@@ -212,10 +232,12 @@
     });
 
     if (!gl) {
-      // No WebGL2 support: nothing to draw. The CSS-only scanline/vignette
-      // treatment already applied via .crt::before/::after remains as-is
-      // (crt-canvas-active is never added, so that CSS stays untouched).
-      console.info('crt.js: WebGL2 unavailable, using CSS-only CRT fallback.');
+      // No WebGL2 support (or a touch-primary device, see above): nothing to
+      // draw. The CSS-only scanline/vignette treatment already applied via
+      // .crt::before/::after remains as-is (crt-canvas-active is never
+      // added, so that CSS stays untouched).
+      console.info('crt.js: ' + (touchPrimary ? 'touch-primary device' : 'WebGL2 unavailable') +
+        ', using CSS-only CRT fallback.');
       canvas.style.display = 'none';
       if (toggle) {
         toggle.textContent = 'CRT: N/A';
