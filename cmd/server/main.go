@@ -1,10 +1,9 @@
 package main
 
 import (
-
-	"fmt"
-
+	"log"
 	"net/http"
+	"os"
 
 	"github.com/joakes90/homepage/internal/handlers"
 )
@@ -17,6 +16,11 @@ func main() {
 	fs := http.FileServer(http.Dir("web/static/"))
 	http.Handle("/static/", http.StripPrefix("/static/", fs))
 
-	http.ListenAndServe(":8282", nil)
-	fmt.Println("Server running on port 8282")
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8282"
+	}
+
+	log.Println("Server running on port " + port)
+	log.Fatal(http.ListenAndServe(":"+port, nil))
 }
