@@ -12,6 +12,7 @@ func main() {
 	http.HandleFunc("/", handlers.Home)
 	http.HandleFunc("/belttune", handlers.BeltTune)
 	http.HandleFunc("/privacy", handlers.Privacy)
+	http.HandleFunc("/primastrada", handlers.PrimaStrada)
 
 	fs := http.FileServer(http.Dir("web/static/"))
 	http.Handle("/static/", http.StripPrefix("/static/", fs))
